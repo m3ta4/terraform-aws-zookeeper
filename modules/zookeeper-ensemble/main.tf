@@ -22,7 +22,7 @@ resource "aws_instance" "zookeeper" {
   root_block_device {
     volume_size = "${var.root_volume_size}"
     volume_type = "${var.root_volume_type}"
-    iops        = "${var.root_volume_iops}"
+    #iops        = "${var.root_volume_iops}" This needs a condition if io1
   }
   tags {
     Name      = "${var.cluster_name}${format("%02d", count.index + 1)}"

@@ -6,7 +6,7 @@ terraform {
   backend "s3" {
     bucket  = "trustnet-dev-terraform"
     encrypt = true
-    key     = "us-west-2/dev/services/bastion/terraform.tfstate"
+    key     = "us-west-2/dev/services/zookeeper/terraform.tfstate"
     profile = "trustnet-dev"
     region  = "us-west-2"
   }
@@ -58,8 +58,9 @@ data "template_file" "user_data_server" {
   template = "${file("${path.module}/examples/root-example/user-data-server.sh")}"
 
   vars {
-    cluster_tag_key   = "${var.cluster_tag_key}"
-    cluster_tag_value = "${var.cluster_name}"
+    zookeeper_01   = "zookeeper_01" // compose this like using the same way you do for the resource record.
+    zookeeper_02   = "zookeeper_02"
+    zookeeper_03   = "zookeeper_03"
   }
 }
 
