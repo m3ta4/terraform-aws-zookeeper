@@ -3,6 +3,10 @@
 # You must provide a value for each of these parameters.
 # ---------------------------------------------------------------------------------------------------------------------
 
+variable "ami_id" {
+  description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
+}
+
 variable "cluster_name" {
   description = "The name of the Zookeeper cluster (e.g. zookeeper-stage). This variable is used to namespace all resources created by this module."
 }
@@ -11,25 +15,16 @@ variable "domain" {
   description = "The domain in which to create resource records."
 }
 
-variable "ami_id" {
-  description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
-}
-
 variable "instance_type" {
   description = "The type of EC2 Instances to run for each node in the cluster (e.g. t2.micro)."
 }
 
-variable "vpc_id" {
-  description = "The ID of the VPC in which to deploy the Zookeeper cluster"
-}
-
-variable "allowed_inbound_cidr_blocks" {
-  description = "A list of CIDR-formatted IP address ranges from which the EC2 Instances will allow connections to Zookeeper"
-  type        = "list"
-}
-
 variable "user_data" {
   description = "A User Data script to execute while the server is booting. We remmend passing in a bash script that executes the run-zookeeper script, which should have been installed in the Zookeeper AMI by the install-zookeeper module."
+}
+
+variable "vpc_id" {
+  description = "The ID of the VPC in which to deploy the Zookeeper cluster"
 }
 
 variable "zone_id" {
@@ -40,6 +35,12 @@ variable "zone_id" {
 # OPTIONAL PARAMETERS
 # These parameters have reasonable defaults.
 # ---------------------------------------------------------------------------------------------------------------------
+
+variable "allowed_inbound_cidr_blocks" {
+  description = "A list of CIDR-formatted IP address ranges from which the EC2 Instances will allow connections to Zookeeper"
+  type        = "list"
+  default     = []
+}
 
 variable "cluster_size" {
   description = "The number of nodes to have in the Zookeeper cluster. We strongly recommended that you use either 3 or 5."
