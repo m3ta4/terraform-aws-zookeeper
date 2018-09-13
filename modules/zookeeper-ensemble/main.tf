@@ -91,3 +91,25 @@ module "security_group_rules" {
   zookeeper_peer_port   = "${var.zookeeper_peer_port}"
   zookeeper_elect_port  = "${var.zookeeper_elect_port}"
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# CREATE DNS RECORDS FOR THE ZOOKEEPER SERVER NODES
+# ---------------------------------------------------------------------------------------------------------------------
+
+resource "aws_route53_record" "zookeeper_server" {
+  count   = "${var.cluster_size}"
+  zone_id = "${var.zone_id}"
+  name    = "zookeeper-${format("%02d", count.index + 1)}.${var.domain}"
+  type    = "A"
+  ttl     = "60"
+  records = ["${element(aws_instance.zookeeper.*.private_ip, count.index)}"]
+}
+
+resource "aws_route53_record" "zookeeper" {
+  zone_id = "${var.zone_id}"
+  name    = "zookeeper.${var.domain}"
+  type    = "A"
+  ttl     = "300"
+  records = ["${aws_instance.zookeeper.*.private_ip}"]
+}
+

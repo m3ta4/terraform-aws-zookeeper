@@ -7,6 +7,10 @@ variable "cluster_name" {
   description = "The name of the Zookeeper cluster (e.g. zookeeper-stage). This variable is used to namespace all resources created by this module."
 }
 
+variable "domain" {
+  description = "The domain in which to create resource records."
+}
+
 variable "ami_id" {
   description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
 }
@@ -26,6 +30,10 @@ variable "allowed_inbound_cidr_blocks" {
 
 variable "user_data" {
   description = "A User Data script to execute while the server is booting. We remmend passing in a bash script that executes the run-zookeeper script, which should have been installed in the Zookeeper AMI by the install-zookeeper module."
+}
+
+variable "zone_id" {
+  description = "Zone ID of the domain for resource records to be created in."
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
