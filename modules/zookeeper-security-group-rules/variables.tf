@@ -38,3 +38,8 @@ variable "zookeeper_elect_port" {
   default     = 3888
 }
 
+variable "exhibitor_ui_port" {
+  description = "The port used to access the Exhibitor UI Control Pannel."
+  default     = 8080
+}
+
