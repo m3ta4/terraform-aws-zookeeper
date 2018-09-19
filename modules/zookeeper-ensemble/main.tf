@@ -197,6 +197,17 @@ data "aws_iam_policy_document" "instance_role" {
 module "iam_policies" {
   source = "../zookeeper-iam-policies"
 
-  iam_role_id = "${aws_iam_role.instance_role.id}"
+  iam_role_id             = "${aws_iam_role.instance_role.id}"
+  zookeeper_config_bucket = "trustnet-dev-zookeeper-config"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# THE ZOOKEEPER CONFIGURATION BUCKET COMES FROM THE ZOOKEEPER-CONFIG-BUCKET MODULE
+# ---------------------------------------------------------------------------------------------------------------------
+
+module "zookeeper_config" {
+  source = "../zookeeper-config-bucket"
+
+  zookeeper_config_bucket = "${var.zookeeper_config_bucket}"
 }
 

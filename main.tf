@@ -68,7 +68,7 @@ module "zookeeper_servers" {
   cluster_tag_value = "${var.cluster_name}"
 
   ami_id    = "${var.ami_id == "" ? data.aws_ami.zookeeper.image_id : var.ami_id}"
-  user_data = "${data.template_file.user_data_server.rendered}"
+  user_data = "${data.template_file.user_data.rendered}"
 
   vpc_id     = "${data.aws_vpc.default.id}"
   subnet_ids = "${data.aws_subnet_ids.private.ids}"
@@ -79,6 +79,8 @@ module "zookeeper_servers" {
 
   allowed_inbound_cidr_blocks = ["0.0.0.0/0"]
   ssh_key_name                = "${var.ssh_key_name}"
+
+  zookeeper_config_bucket = "trustnet-dev-zookeeper-config"
 
   tags = [
     {
@@ -94,12 +96,14 @@ module "zookeeper_servers" {
 # This script will configure and start Zookeeper
 # ---------------------------------------------------------------------------------------------------------------------
 
-data "template_file" "user_data_server" {
-  template = "${file("${path.module}/examples/root-example/user-data-server.sh")}"
+data "template_file" "user_data" {
+  template = "${file("${path.module}/examples/root-example/user-data-exhibitor.sh")}"
 
   vars {
     cluster_tag_key   = "${var.cluster_tag_key}"
     cluster_tag_value = "${var.cluster_name}"
+    bucket            = "trustnet-dev-zookeeper-config"
+    key               = "trustnet/dev/zookeeper"
   }
 }
 

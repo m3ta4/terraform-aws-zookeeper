@@ -28,6 +28,10 @@ variable "user_data" {
   description = "A User Data script to execute while the server is booting. We remmend passing in a bash script that executes the run-zookeeper script, which should have been installed in the Zookeeper AMI by the install-zookeeper module."
 }
 
+variable "zookeeper_config_bucket" {
+  description = "The name of the S3 bucket for the Zookeeper configuration. To be read by Exhibitor."
+}
+
 # ---------------------------------------------------------------------------------------------------------------------
 # OPTIONAL PARAMETERS
 # These parameters have reasonable defaults.
