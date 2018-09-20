@@ -3,32 +3,33 @@
 # You must provide a value for each of these parameters.
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "ami_id" {
-  description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
-}
-
 variable "cluster_name" {
   description = "The name of the Zookeeper cluster (e.g. zookeeper-stage). This variable is used to namespace all resources created by this module."
 }
 
-variable "domain" {
-  description = "The domain in which to create resource records."
+variable "ami_id" {
+  description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
 }
 
 variable "instance_type" {
   description = "The type of EC2 Instances to run for each node in the cluster (e.g. t2.micro)."
 }
 
-variable "user_data" {
-  description = "A User Data script to execute while the server is booting. We remmend passing in a bash script that executes the run-zookeeper script, which should have been installed in the Zookeeper AMI by the install-zookeeper module."
-}
-
 variable "vpc_id" {
   description = "The ID of the VPC in which to deploy the Zookeeper cluster"
 }
 
-variable "zone_id" {
-  description = "Zone ID of the domain for resource records to be created in."
+variable "allowed_inbound_cidr_blocks" {
+  description = "A list of CIDR-formatted IP address ranges from which the EC2 Instances will allow connections to Zookeeper"
+  type        = "list"
+}
+
+variable "user_data" {
+  description = "A User Data script to execute while the server is booting. We remmend passing in a bash script that executes the run-zookeeper script, which should have been installed in the Zookeeper AMI by the install-zookeeper module."
+}
+
+variable "zookeeper_config_bucket" {
+  description = "The name of the S3 bucket for the Zookeeper configuration. To be read by Exhibitor."
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -36,15 +37,19 @@ variable "zone_id" {
 # These parameters have reasonable defaults.
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "allowed_inbound_cidr_blocks" {
-  description = "A list of CIDR-formatted IP address ranges from which the EC2 Instances will allow connections to Zookeeper"
-  type        = "list"
-  default     = []
-}
-
 variable "cluster_size" {
   description = "The number of nodes to have in the Zookeeper cluster. We strongly recommended that you use either 3 or 5."
   default     = 3
+}
+
+variable "cluster_tag_key" {
+  description = "Add a tag with this key and the value var.cluster_tag_value to each Instance in the ASG. This can be used to automatically find other Zookeeper nodes and form a cluster."
+  default     = "zookeeper-servers"
+}
+
+variable "cluster_tag_value" {
+  description = "Add a tag with key var.clsuter_tag_key and this value to each Instance in the ASG. This can be used to automatically find other Zookeeper nodes and form a cluster."
+  default     = "auto-join"
 }
 
 variable "subnet_ids" {
@@ -94,9 +99,24 @@ variable "security_group_tags" {
   default     = {}
 }
 
+variable "termination_policies" {
+  description = "A list of policies to decide how the instances in the auto scale group should be terminated. The allowed values are OldestInstance, NewestInstance, OldestLaunchConfiguration, ClosestToNextInstanceHour, Default."
+  default     = "Default"
+}
+
 variable "associate_public_ip_address" {
   description = "If set to true, associate a public IP address with each EC2 Instance in the cluster."
   default     = false
+}
+
+variable "spot_price" {
+  description = "The maximum hourly price to pay for EC2 Spot Instances."
+  default     = ""
+}
+
+variable "tenancy" {
+  description = "The tenancy of the instance. Must be one of: empty string, default or dedicated. For EC2 Spot Instances only empty string or dedicated can be used."
+  default     = ""
 }
 
 variable "root_volume_ebs_optimized" {
@@ -117,6 +137,26 @@ variable "root_volume_size" {
 variable "root_volume_delete_on_termination" {
   description = "Whether the volume should be destroyed on instance termination."
   default     = true
+}
+
+variable "wait_for_capacity_timeout" {
+  description = "A maximum duration that Terraform should wait for ASG instances to be healthy before timing out. Setting this to '0' causes Terraform to skip all Capacity Waiting behavior."
+  default     = "10m"
+}
+
+variable "health_check_type" {
+  description = "Controls how health checking is done. Must be one of EC2 or ELB."
+  default     = "EC2"
+}
+
+variable "health_check_grace_period" {
+  description = "Time, in seconds, after instance comes into service before checking health."
+  default     = 300
+}
+
+variable "instance_profile_path" {
+  description = "Path in which to create the IAM instance profile."
+  default     = "/"
 }
 
 variable "zookeeper_client_port" {

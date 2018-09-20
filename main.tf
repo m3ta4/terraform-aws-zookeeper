@@ -1,31 +1,30 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # DEPLOY A ZOOKEEPER ENSEMBLE IN AWS
+# These templates show an example of how to use the zookeeper-ensemble module to deploy Zookeeper in AWS. We deploy an Auto
+# Scaling Group (ASG): with a small number of Zookeeper server nodes
+# Note that these templates assume that the AMI you provide via the ami_id input variable is built from
+# the examples/zookeeper-ami/zookeeper.json Packer template.
 # ---------------------------------------------------------------------------------------------------------------------
 
+# Terraform 0.9.5 suffered from https://github.com/hashicorp/terraform/issues/14399, which causes this template the
+# conditionals in this template to fail.
 terraform {
-  backend "s3" {
-    bucket  = "trustnet-dev-terraform"
-    encrypt = true
-    key     = "us-west-2/dev/services/zookeeper/terraform.tfstate"
-    profile = "trustnet-dev"
-    region  = "us-west-2"
-  }
-}
-
-data "terraform_remote_state" "vpc" {
-  backend = "s3"
-
-  config {
-    bucket  = "trustnet-dev-terraform"
-    encrypt = true
-    key     = "us-west-2/dev/vpc/terraform.tfstate"
-    profile = "trustnet-dev"
-    region  = "us-west-2"
-  }
+  required_version = ">= 0.9.3, != 0.9.5"
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
 # AUTOMATICALLY LOOK UP THE LATEST PRE-BUILT AMI
+# This repo contains a Jenkinsfile that automatically builds and publishes the latest AMI by building the Packer
+# template at /examples/zookeeper-ami upon every new release. The Terraform data source below automatically looks up the
+# latest AMI so that a simple "terraform apply" will just work without the user needing to manually build an AMI and
+# fill in the right value.
+#
+# !! WARNING !! These exmaple AMIs are meant only convenience when initially testing this repo. Do NOT use these example
+# AMIs in a production setting because it is important that you consciously think through the configuration you want
+# in your own production AMI.
+#
+# NOTE: This Terraform data source must return at least one AMI result or the entire template will fail. See
+# /_ci/publish-amis-in-new-account.md for more information.
 # ---------------------------------------------------------------------------------------------------------------------
 data "aws_ami" "zookeeper" {
   most_recent = true
@@ -54,15 +53,34 @@ data "aws_ami" "zookeeper" {
 # This script will configure and start Zookeeper
 # ---------------------------------------------------------------------------------------------------------------------
 
-data "template_file" "user_data_server" {
-  template = "${file("${path.module}/examples/root-example/user-data-server.sh")}"
+data "template_file" "user_data" {
+  template = "${file("${path.module}/examples/root-example/user-data-exhibitor.sh")}"
 
   vars {
-    zookeeper_01   = "zookeeper_01" // compose this like using the same way you do for the resource record.
-    zookeeper_02   = "zookeeper_02"
-    zookeeper_03   = "zookeeper_03"
+    bucket = "trustnet-dev-zookeeper-config"
+    key    = "trustnet/dev/zookeeper"
   }
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# DEPLOY ZOOKEEPER IN THE DEFAULT VPC AND SUBNETS
+# Using the default VPC and subnets makes this example easy to run and test, but it means Zookeeper is accessible from the
+# public Internet. For a production deployment, we strongly recommend deploying into a custom VPC with private subnets.
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "aws_vpc" "default" {
+  default = "${var.vpc_id == "" ? true : false}"
+  id      = "${var.vpc_id}"
+}
+
+data "aws_subnet_ids" "private" {
+  vpc_id = "${data.aws_vpc.default.id}"
+  tags {
+    SubnetType = "private"
+  }
+}
+
+data "aws_region" "current" {}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # DEPLOY THE ZOOKEEPER SERVER NODES
@@ -71,29 +89,39 @@ data "template_file" "user_data_server" {
 module "zookeeper_ensemble" {
   # When using these modules in your own templates, you will need to use a Git URL with a ref attribute that pins you
   # to a specific version of the modules, such as the following example:
-  # source = "git::http://git@gogs.devlab.local/Venafi/terraform-aws-zookeeper.git//modules/zookeeper-ensemble?ref=develop"
+  #source = "git::http://git@gogs.devlab.local/kevin/terraform-aws-zookeeper.git//modules/zookeeper-ensemble?ref=feature/zookeeper-asg-scaling-fails-on-3.4"
   source = "modules/zookeeper-ensemble"
 
-  cluster_name  = "trustnet-dev-zookeeper"
-  cluster_size  = "3"
+  cluster_name  = "${var.cluster_name}-server"
+  cluster_size  = "${var.num_servers}"
   instance_type = "t2.micro"
-  ami_id        = "${data.aws_ami.zookeeper.image_id}"
-  user_data     = "${data.template_file.user_data_server.rendered}"
-  vpc_id        = "${data.terraform_remote_state.vpc.vpc_id}"
-  subnet_ids    = "${data.terraform_remote_state.vpc.private_subnets}"
+  spot_price    = "${var.spot_price}"
+
+  # The EC2 Instances will use these tags to automatically discover each other and form a cluster
+  cluster_tag_key   = "${var.cluster_tag_key}"
+  cluster_tag_value = "${var.cluster_name}"
+
+  ami_id    = "${var.ami_id == "" ? data.aws_ami.zookeeper.image_id : var.ami_id}"
+  user_data = "${data.template_file.user_data.rendered}"
+
+  vpc_id     = "${data.aws_vpc.default.id}"
+  subnet_ids = "${data.aws_subnet_ids.private.ids}"
 
   # To make testing easier, we allow Zookeeper and SSH requests from any IP address here but in a production
   # deployment, we strongly recommend you limit this to the IP address ranges of known, trusted servers inside your VPC.
   allowed_ssh_cidr_blocks = ["0.0.0.0/0"]
 
   allowed_inbound_cidr_blocks = ["0.0.0.0/0"]
-  ssh_key_name                = "deploy-dev"
+  ssh_key_name                = "${var.ssh_key_name}"
+
+  zookeeper_config_bucket = "trustnet-dev-zookeeper-config"
 
   tags = [
     {
       key                 = "Environment"
-      value               = "dev"
+      value               = "development"
       propagate_at_launch = true
     },
   ]
 }
+
