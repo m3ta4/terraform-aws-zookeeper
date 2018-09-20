@@ -100,10 +100,8 @@ data "template_file" "user_data" {
   template = "${file("${path.module}/examples/root-example/user-data-exhibitor.sh")}"
 
   vars {
-    cluster_tag_key   = "${var.cluster_tag_key}"
-    cluster_tag_value = "${var.cluster_name}"
-    bucket            = "trustnet-dev-zookeeper-config"
-    key               = "trustnet/dev/zookeeper"
+    bucket = "trustnet-dev-zookeeper-config"
+    key    = "trustnet/dev/zookeeper"
   }
 }
 
