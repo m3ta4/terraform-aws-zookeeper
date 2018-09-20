@@ -49,10 +49,44 @@ data "aws_ami" "zookeeper" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
+# THE USER DATA SCRIPT THAT WILL RUN ON EACH ZOOKEEPER SERVER EC2 INSTANCE WHEN IT'S BOOTING
+# This script will configure and start Zookeeper
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "template_file" "user_data" {
+  template = "${file("${path.module}/examples/root-example/user-data-exhibitor.sh")}"
+
+  vars {
+    bucket = "trustnet-dev-zookeeper-config"
+    key    = "trustnet/dev/zookeeper"
+  }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# DEPLOY ZOOKEEPER IN THE DEFAULT VPC AND SUBNETS
+# Using the default VPC and subnets makes this example easy to run and test, but it means Zookeeper is accessible from the
+# public Internet. For a production deployment, we strongly recommend deploying into a custom VPC with private subnets.
+# ---------------------------------------------------------------------------------------------------------------------
+
+data "aws_vpc" "default" {
+  default = "${var.vpc_id == "" ? true : false}"
+  id      = "${var.vpc_id}"
+}
+
+data "aws_subnet_ids" "private" {
+  vpc_id = "${data.aws_vpc.default.id}"
+  tags {
+    SubnetType = "private"
+  }
+}
+
+data "aws_region" "current" {}
+
+# ---------------------------------------------------------------------------------------------------------------------
 # DEPLOY THE ZOOKEEPER SERVER NODES
 # ---------------------------------------------------------------------------------------------------------------------
 
-module "zookeeper_servers" {
+module "zookeeper_ensemble" {
   # When using these modules in your own templates, you will need to use a Git URL with a ref attribute that pins you
   # to a specific version of the modules, such as the following example:
   #source = "git::http://git@gogs.devlab.local/kevin/terraform-aws-zookeeper.git//modules/zookeeper-ensemble?ref=feature/zookeeper-asg-scaling-fails-on-3.4"
@@ -90,38 +124,4 @@ module "zookeeper_servers" {
     },
   ]
 }
-
-# ---------------------------------------------------------------------------------------------------------------------
-# THE USER DATA SCRIPT THAT WILL RUN ON EACH ZOOKEEPER SERVER EC2 INSTANCE WHEN IT'S BOOTING
-# This script will configure and start Zookeeper
-# ---------------------------------------------------------------------------------------------------------------------
-
-data "template_file" "user_data" {
-  template = "${file("${path.module}/examples/root-example/user-data-exhibitor.sh")}"
-
-  vars {
-    bucket = "trustnet-dev-zookeeper-config"
-    key    = "trustnet/dev/zookeeper"
-  }
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
-# DEPLOY ZOOKEEPER IN THE DEFAULT VPC AND SUBNETS
-# Using the default VPC and subnets makes this example easy to run and test, but it means Zookeeper is accessible from the
-# public Internet. For a production deployment, we strongly recommend deploying into a custom VPC with private subnets.
-# ---------------------------------------------------------------------------------------------------------------------
-
-data "aws_vpc" "default" {
-  default = "${var.vpc_id == "" ? true : false}"
-  id      = "${var.vpc_id}"
-}
-
-data "aws_subnet_ids" "private" {
-  vpc_id = "${data.aws_vpc.default.id}"
-  tags {
-    SubnetType = "private"
-  }
-}
-
-data "aws_region" "current" {}
 
