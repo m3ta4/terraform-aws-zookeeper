@@ -125,3 +125,120 @@ module "zookeeper_ensemble" {
   ]
 }
 
+# ---------------------------------------------------------------------------------------------------------------------
+# CONNECT THE ZOOKEEPER ENSEMBLE TO AN ALB
+# ---------------------------------------------------------------------------------------------------------------------
+resource "aws_s3_bucket" "zookeeper_alb_logs" {
+  acl    = "private"
+  bucket = "trustnet-dev-zookeeper-alb-logs"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": "797873946194"},
+      "Action": ["s3:PutObject"],
+      "Resource": "arn:aws:s3:::trustnet-dev-zookeeper-alb-logs/*"
+    }
+  ]
+}
+EOF
+
+  versioning {
+    enabled = "false"
+  }
+
+}
+
+resource "aws_lb" "exhibitor" {
+  name               = "exhibitor-ui"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = ["${module.zookeeper_ensemble.security_group_id}"]
+  subnets            = ["${data.aws_subnet_ids.private.ids}"]
+
+  enable_deletion_protection = false
+
+  access_logs {
+    bucket  = "${aws_s3_bucket.zookeeper_alb_logs.bucket}"
+    prefix  = "exhibitor-ui-"
+    enabled = true
+  }
+}
+
+resource "aws_lb" "zookeeper" {
+  name               = "zookeeper-client"
+  internal           = true
+  load_balancer_type = "application"
+  security_groups    = ["${module.zookeeper_ensemble.security_group_id}"]
+  subnets            = ["${data.aws_subnet_ids.private.ids}"]
+
+  enable_deletion_protection = false
+
+  access_logs {
+    bucket  = "${aws_s3_bucket.zookeeper_alb_logs.bucket}"
+    prefix  = "zookeeper-client-"
+    enabled = true
+  }
+}
+
+resource "aws_alb_target_group" "exhibitor" {
+  name_prefix = "exhbtr"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = "${data.aws_vpc.default.id}"
+
+  health_check {
+    healthy_threshold   = 2
+    interval            = 15
+    path                = "/exhibitor/v1/cluster/status"
+    timeout             = 10
+    unhealthy_threshold = 2
+  }
+}
+
+resource "aws_alb_target_group" "zookeeper_client" {
+  name_prefix = "zkclnt"
+  port        = 2181
+  protocol    = "HTTP"
+  vpc_id      = "${data.aws_vpc.default.id}"
+
+  health_check {
+    healthy_threshold   = 2
+    interval            = 15
+    path                = "/exhibitor/v1/cluster/state"
+    port                = 8080
+    timeout             = 10
+    unhealthy_threshold = 2
+  }
+
+  stickiness {
+    type = "lb_cookie"
+  }
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment_exhibitor" {
+  autoscaling_group_name = "${module.zookeeper_ensemble.asg_name}"
+  alb_target_group_arn   = "${aws_alb_target_group.exhibitor.arn}"
+}
+
+resource "aws_autoscaling_attachment" "asg_attachment_zookeeper" {
+  autoscaling_group_name = "${module.zookeeper_ensemble.asg_name}"
+  alb_target_group_arn   = "${aws_alb_target_group.zookeeper_client.arn}"
+}
+
+# Create listener with default that forwards to port for internal clients
+# Use app path with https for external clients by adding a listener rule.
+resource "aws_lb_listener" "zookeeper_client" {
+  load_balancer_arn = "${aws_lb.zookeeper.arn}"
+  port              = "2181"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = "${aws_alb_target_group.zookeeper_client.arn}"
+  }
+}
+
