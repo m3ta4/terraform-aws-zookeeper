@@ -80,6 +80,13 @@ data "aws_subnet_ids" "private" {
   }
 }
 
+data "aws_subnet_ids" "public" {
+  vpc_id = "${data.aws_vpc.default.id}"
+  tags {
+    SubnetType = "public"
+  }
+}
+
 data "aws_region" "current" {}
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -109,10 +116,10 @@ module "zookeeper_ensemble" {
 
   # To make testing easier, we allow Zookeeper and SSH requests from any IP address here but in a production
   # deployment, we strongly recommend you limit this to the IP address ranges of known, trusted servers inside your VPC.
-  allowed_ssh_cidr_blocks = ["0.0.0.0/0"]
-
-  allowed_inbound_cidr_blocks = ["0.0.0.0/0"]
-  ssh_key_name                = "${var.ssh_key_name}"
+  allowed_ssh_cidr_blocks            = ["66.205.218.243/32", "10.48.0.0/16"]
+  allowed_inbound_security_group_ids = ["${module.zookeeper_ensemble.security_group_id}"]
+  allowed_inbound_cidr_blocks        = ["66.205.218.243/32"]
+  ssh_key_name                       = "${var.ssh_key_name}"
 
   zookeeper_config_bucket = "trustnet-dev-zookeeper-config"
 
@@ -152,34 +159,19 @@ EOF
 
 }
 
+# External UI
 resource "aws_lb" "exhibitor" {
   name               = "exhibitor-ui"
   internal           = false
   load_balancer_type = "application"
   security_groups    = ["${module.zookeeper_ensemble.security_group_id}"]
-  subnets            = ["${data.aws_subnet_ids.private.ids}"]
+  subnets            = ["${data.aws_subnet_ids.public.ids}"]
 
   enable_deletion_protection = false
 
   access_logs {
     bucket  = "${aws_s3_bucket.zookeeper_alb_logs.bucket}"
     prefix  = "exhibitor-ui-"
-    enabled = true
-  }
-}
-
-resource "aws_lb" "zookeeper" {
-  name               = "zookeeper-client"
-  internal           = true
-  load_balancer_type = "application"
-  security_groups    = ["${module.zookeeper_ensemble.security_group_id}"]
-  subnets            = ["${data.aws_subnet_ids.private.ids}"]
-
-  enable_deletion_protection = false
-
-  access_logs {
-    bucket  = "${aws_s3_bucket.zookeeper_alb_logs.bucket}"
-    prefix  = "zookeeper-client-"
     enabled = true
   }
 }
@@ -199,46 +191,18 @@ resource "aws_alb_target_group" "exhibitor" {
   }
 }
 
-resource "aws_alb_target_group" "zookeeper_client" {
-  name_prefix = "zkclnt"
-  port        = 2181
-  protocol    = "HTTP"
-  vpc_id      = "${data.aws_vpc.default.id}"
-
-  health_check {
-    healthy_threshold   = 2
-    interval            = 15
-    path                = "/exhibitor/v1/cluster/state"
-    port                = 8080
-    timeout             = 10
-    unhealthy_threshold = 2
-  }
-
-  stickiness {
-    type = "lb_cookie"
-  }
-}
-
 resource "aws_autoscaling_attachment" "asg_attachment_exhibitor" {
   autoscaling_group_name = "${module.zookeeper_ensemble.asg_name}"
   alb_target_group_arn   = "${aws_alb_target_group.exhibitor.arn}"
 }
 
-resource "aws_autoscaling_attachment" "asg_attachment_zookeeper" {
-  autoscaling_group_name = "${module.zookeeper_ensemble.asg_name}"
-  alb_target_group_arn   = "${aws_alb_target_group.zookeeper_client.arn}"
-}
-
-# Create listener with default that forwards to port for internal clients
-# Use app path with https for external clients by adding a listener rule.
-resource "aws_lb_listener" "zookeeper_client" {
-  load_balancer_arn = "${aws_lb.zookeeper.arn}"
-  port              = "2181"
+resource "aws_lb_listener" "exhibitor_ui" {
+  load_balancer_arn = "${aws_lb.exhibitor.arn}"
+  port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = "${aws_alb_target_group.zookeeper_client.arn}"
+    target_group_arn = "${aws_alb_target_group.exhibitor.arn}"
   }
 }
-
