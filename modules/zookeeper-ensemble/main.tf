@@ -39,6 +39,11 @@ resource "aws_autoscaling_group" "autoscaling_group" {
       value               = "${var.cluster_tag_value}"
       propagate_at_launch = true
     },
+    {
+      key                 = "DomainMeta"
+      value               = "Z3JP3QB1DTH1TW:zookeeper.dev.trustnet.aws"
+      propagate_at_launch = true
+    },
     "${var.tags}"
   ]
 }
@@ -211,3 +216,109 @@ module "zookeeper_config" {
   zookeeper_config_bucket = "${var.zookeeper_config_bucket}"
 }
 
+# Testing Lambda function to update dns on asg event.
+
+# Create sns topic
+resource "aws_sns_topic" "zookeeper_asg_updates" {
+  name = "zookeeper-asg-updates-topic"
+}
+
+# Configure ASG to publish event notifications
+resource "aws_autoscaling_notification" "zookeeper_asg_notifications" {
+  group_names = [
+    "${aws_autoscaling_group.autoscaling_group.name}",
+  ]
+
+  notifications = [
+    "autoscaling:EC2_INSTANCE_LAUNCH",
+    "autoscaling:EC2_INSTANCE_TERMINATE",
+  ]
+
+  topic_arn = "${aws_sns_topic.zookeeper_asg_updates.arn}"
+}
+
+# Create IAM role for Lambda
+resource "aws_iam_role" "lambda_role" {
+  name_prefix        = "lambda-zookeeper-"
+  assume_role_policy = "${data.aws_iam_policy_document.lambda_role.json}"
+
+  # aws_iam_instance_profile.instance_profile in this module sets create_before_destroy to true, which means
+  # everything it depends on, including this resource, must set it as well, or you'll get cyclic dependency errors
+  # when you try to do a terraform destroy.
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+data "aws_iam_policy_document" "lambda_role" {
+  statement {
+    effect    = "Allow"
+    actions   = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_asg_route53" {
+  name = "lambda-asg-route53"
+  role = "${aws_iam_role.lambda_role.id}"
+  policy = "${data.aws_iam_policy_document.lambda_asg_route53.json}"
+}
+
+data "aws_iam_policy_document" "lambda_asg_route53" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "ec2:Describe*",
+      "elasticloadbalancing:Describe*",
+      "cloudwatch:ListMetrics",
+      "cloudwatch:GetMetricStatistics",
+      "cloudwatch:Describe*",
+      "autoscaling:Describe*",
+      "route53:*",
+      "route53domains:*",
+      "cloudfront:ListDistributions",
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticbeanstalk:DescribeEnvironments",
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+      "s3:GetBucketWebsite",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeRegions",
+      "sns:ListTopics",
+      "sns:ListSubscriptionsByTopic",
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:GetMetricStatistics"
+    ]
+
+    resources = ["*"]
+  }
+}
+
+# Create Lambda function to process ASG events.
+resource "aws_lambda_function" "zookeeper_asg_dns_lambda" {
+  #filename         = "${file("${path.module}/asg_dns_updater.zip")}"
+  filename         = "asg_dns_updater.zip"
+  function_name    = "asg_dns_updater"
+  role             = "${aws_iam_role.lambda_role.arn}"
+  handler          = "exports.handler"
+  #source_code_hash = "${base64sha256(file("asg_dns_updater.zip"))}"
+  runtime          = "nodejs8.10"
+
+  environment {
+    variables = {
+      foo = "bar"
+    }
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "event_source_mapping" {
+  batch_size        = 1
+  event_source_arn  = "${aws_sns_topic.zookeeper_asg_updates.arn}"
+  enabled           = true
+  function_name     = "${aws_lambda_function.zookeeper_asg_dns_lambda.arn}"
+}
