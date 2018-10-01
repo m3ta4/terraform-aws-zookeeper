@@ -11,6 +11,10 @@ variable "ami_id" {
   description = "The ID of the AMI to run in this cluster. Should be an AMI that had Zookeeper installed and configured by the install-zookeeper module."
 }
 
+variable "asg_lambda_file" {
+  description = "File to use for the ASG Lambda function"
+}
+
 variable "instance_type" {
   description = "The type of EC2 Instances to run for each node in the cluster (e.g. t2.micro)."
 }
