@@ -99,6 +99,7 @@ module "zookeeper_ensemble" {
   #source = "git::http://git@gogs.devlab.local/kevin/terraform-aws-zookeeper.git//modules/zookeeper-ensemble?ref=feature/zookeeper-asg-scaling-fails-on-3.4"
   source = "modules/zookeeper-ensemble"
 
+  asg_lambda_file = "${var.asg_lambda_file}"
   cluster_name  = "${var.cluster_name}-server"
   cluster_size  = "${var.num_servers}"
   instance_type = "t2.micro"
@@ -116,9 +117,9 @@ module "zookeeper_ensemble" {
 
   # To make testing easier, we allow Zookeeper and SSH requests from any IP address here but in a production
   # deployment, we strongly recommend you limit this to the IP address ranges of known, trusted servers inside your VPC.
-  allowed_ssh_cidr_blocks            = ["66.205.218.243/32", "10.48.0.0/16"]
+  allowed_ssh_cidr_blocks            = ["209.41.87.225/32", "10.48.0.0/16"]
   allowed_inbound_security_group_ids = ["${module.zookeeper_ensemble.security_group_id}"]
-  allowed_inbound_cidr_blocks        = ["66.205.218.243/32"]
+  allowed_inbound_cidr_blocks        = ["209.41.87.225/32"]
   ssh_key_name                       = "${var.ssh_key_name}"
 
   zookeeper_config_bucket = "trustnet-dev-zookeeper-config"

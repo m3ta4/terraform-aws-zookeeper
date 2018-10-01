@@ -16,6 +16,11 @@ variable "ami_id" {
   default     = ""
 }
 
+variable "asg_lambda_file" {
+  description = "File to use for the ASG Lambda function"
+  default     = "./examples/root-example/asg_dns_updater.zip"
+}
+
 variable "cluster_name" {
   description = "What to name the Zookeeper cluster and all of its associated resources"
   default     = "zookeeper"
