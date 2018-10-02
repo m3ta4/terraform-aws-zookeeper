@@ -8,6 +8,7 @@ zookeeper-install-directory=/usr/local/zookeeper
 zookeeper-data-directory=/var/lib/zookeeper
 auto-manage-instances=1
 auto-manage-instances-apply-all-at-once=0
+zoo-cfg-extra=syncLimit\=2&tickTime\=2000&initLimit\=5&autopurge.snapRetainCount\=3&autopurge.purgeInterval\=1
 EOF
 
 # Update the Exhibitor Systemd Unit
