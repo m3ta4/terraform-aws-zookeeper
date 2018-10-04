@@ -100,10 +100,10 @@ module "zookeeper_ensemble" {
   source = "modules/zookeeper-ensemble"
 
   asg_lambda_file = "${var.asg_lambda_file}"
-  cluster_name  = "${var.cluster_name}-server"
-  cluster_size  = "${var.num_servers}"
-  instance_type = "t2.micro"
-  spot_price    = "${var.spot_price}"
+  cluster_name    = "${var.cluster_name}-server"
+  cluster_size    = "${var.num_servers}"
+  instance_type   = "t3.medium"
+  spot_price      = "${var.spot_price}"
 
   # The EC2 Instances will use these tags to automatically discover each other and form a cluster
   cluster_tag_key   = "${var.cluster_tag_key}"
