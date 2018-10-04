@@ -4,7 +4,7 @@
 
 # Create sns topic
 resource "aws_sns_topic" "zookeeper_asg_updates" {
-  name = "zookeeper-asg-updates-topic"
+  name = "asg_dns_updater"
 }
 
 # Configure ASG to publish event notifications
