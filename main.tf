@@ -102,6 +102,7 @@ module "zookeeper_ensemble" {
   asg_lambda_file = "${var.asg_lambda_file}"
   cluster_name    = "${var.cluster_name}-server"
   cluster_size    = "${var.num_servers}"
+  domain_meta     = "Z3JP3QB1DTH1TW:zookeeper.dev.trustnet.aws"
   instance_type   = "t3.medium"
   spot_price      = "${var.spot_price}"
 
@@ -117,9 +118,8 @@ module "zookeeper_ensemble" {
 
   # To make testing easier, we allow Zookeeper and SSH requests from any IP address here but in a production
   # deployment, we strongly recommend you limit this to the IP address ranges of known, trusted servers inside your VPC.
-  allowed_ssh_cidr_blocks            = ["209.41.87.225/32", "10.48.0.0/16"]
-  allowed_inbound_security_group_ids = ["${module.zookeeper_ensemble.security_group_id}"]
-  allowed_inbound_cidr_blocks        = ["209.41.87.225/32"]
+  allowed_ssh_cidr_blocks            = ["0.0.0.0/0"]
+  allowed_inbound_cidr_blocks        = ["0.0.0.0/0"]
   ssh_key_name                       = "${var.ssh_key_name}"
 
   zookeeper_config_bucket = "trustnet-dev-zookeeper-config"

@@ -15,6 +15,10 @@ variable "asg_lambda_file" {
   description = "File to use for the ASG Lambda function"
 }
 
+variable "domain_meta" {
+  description = "Meta tags applied to the ASG for the lambda function. <zone_id>:<url>"
+}
+
 variable "instance_type" {
   description = "The type of EC2 Instances to run for each node in the cluster (e.g. t2.micro)."
 }

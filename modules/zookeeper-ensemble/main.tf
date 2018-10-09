@@ -41,7 +41,7 @@ resource "aws_autoscaling_group" "autoscaling_group" {
     },
     {
       key                 = "DomainMeta"
-      value               = "Z3JP3QB1DTH1TW:zookeeper.dev.trustnet.aws"
+      value               = "${var.domain_meta}"
       propagate_at_launch = true
     },
     "${var.tags}"
