@@ -203,7 +203,7 @@ module "iam_policies" {
   source = "../zookeeper-iam-policies"
 
   iam_role_id             = "${aws_iam_role.instance_role.id}"
-  zookeeper_config_bucket = "trustnet-dev-zookeeper-config"
+  zookeeper_config_bucket = "${var.zookeeper_config_bucket}"
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
