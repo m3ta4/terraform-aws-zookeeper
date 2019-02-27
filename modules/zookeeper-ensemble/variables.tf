@@ -23,6 +23,14 @@ variable "instance_type" {
   description = "The type of EC2 Instances to run for each node in the cluster (e.g. t2.micro)."
 }
 
+variable "lambda_alias" {
+  description = "The alias of the lambda function for the ASG."
+}
+
+variable "lambda_function_name" {
+  description = "The name of the lambda function for the ASG."
+}
+
 variable "vpc_id" {
   description = "The ID of the VPC in which to deploy the Zookeeper cluster"
 }

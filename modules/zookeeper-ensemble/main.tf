@@ -223,9 +223,11 @@ module "zookeeper_config" {
 module "lambda_asg_dns" {
   source = "../zookeeper-lambda"
 
-  asg_lambda_file    = "${var.asg_lambda_file}"
-  asg_group_names    = "${aws_autoscaling_group.autoscaling_group.name}"
-  security_group_ids = ["${aws_security_group.lc_security_group.id}"]
-  subnet_ids         = "${var.subnet_ids}"
+  asg_lambda_file      = "${var.asg_lambda_file}"
+  asg_group_names      = "${aws_autoscaling_group.autoscaling_group.name}"
+  lambda_alias         = "${var.lambda_alias}"
+  lambda_function_name = "${var.lambda_function_name}"
+  security_group_ids   = ["${aws_security_group.lc_security_group.id}"]
+  subnet_ids           = "${var.subnet_ids}"
 }
 
