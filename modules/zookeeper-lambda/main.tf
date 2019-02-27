@@ -4,7 +4,7 @@
 
 # Create sns topic
 resource "aws_sns_topic" "zookeeper_asg_updates" {
-  name = "asg_dns_updater"
+  name_prefix = "asg_dns_updater-"
 }
 
 # Configure ASG to publish event notifications
@@ -47,9 +47,9 @@ data "aws_iam_policy_document" "lambda_role" {
 }
 
 resource "aws_iam_role_policy" "lambda_asg_route53" {
-  name = "lambda-asg-route53"
-  role = "${aws_iam_role.lambda_role.id}"
-  policy = "${data.aws_iam_policy_document.lambda_asg_route53.json}"
+  name_prefix = "lambda-asg-route53-"
+  role        = "${aws_iam_role.lambda_role.id}"
+  policy      = "${data.aws_iam_policy_document.lambda_asg_route53.json}"
 }
 
 data "aws_iam_policy_document" "lambda_asg_route53" {
@@ -95,7 +95,7 @@ data "aws_iam_policy_document" "lambda_asg_route53" {
 }
 
 resource "aws_lambda_function" "zookeeper_asg_dns_lambda" {
-  function_name = "asg_dns_updater"
+  function_name = "${var.lambda_function_name}"
 
   filename         = "${var.asg_lambda_file}"
   handler          = "asg_dns_updater.handler"
@@ -113,7 +113,7 @@ resource "aws_lambda_function" "zookeeper_asg_dns_lambda" {
 }
 
 resource "aws_lambda_alias" "asg_event" {
-    name                 = "asg_event"
+    name                 = "${var.lambda_alias}"
     description          = "Autoscaling event"
 
     function_name        = "${aws_lambda_function.zookeeper_asg_dns_lambda.arn}"
